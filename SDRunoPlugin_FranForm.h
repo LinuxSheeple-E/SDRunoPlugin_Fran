@@ -25,6 +25,7 @@
 #include <nana/gui/timer.hpp>
 #include <nana/gui/widgets/picture.hpp>
 #include <nana/gui/filebox.hpp>
+#include <nana/gui/dragger.hpp>
 #include <nana/gui/widgets/menubar.hpp>
 #include <nana/gui/widgets/textbox.hpp>
 #include <nana/gui/widgets/checkbox.hpp>
@@ -34,16 +35,14 @@
 
 #include <iunoplugincontroller.h>
 
-constexpr auto FRAN_VERSION = "Version 0.0.3";  // For now SDRuno only supports 64 annotators
-
 // Shouldn't need to change these
-#define topBarHeight (25)
+#define topBarHeight (27)
 #define bottomBarHeight (8)
 #define sideBorderWidth (8)
 
 // TODO: Change these numbers to the height and width of your form
 #define formWidth (297)
-#define formHeight (240 - topBarHeight)
+#define formHeight (240)
 
 class SDRunoPlugin_FranUi;
 
@@ -65,12 +64,29 @@ private:
 
 	// Set these two to be relative to the size of the overall form
 	nana::picture bg_border{ *this, nana::rectangle(0, 0, formWidth, formHeight) };
-	nana::picture bg_inner{ bg_border, nana::rectangle(sideBorderWidth, 0, formWidth - (2 * sideBorderWidth), formHeight - bottomBarHeight) };
-	nana::button btn_file{*this, nana::rectangle(20,20, 60, 40)};
+	// Added topBarHeight to accomodate new header style
+	nana::picture bg_inner{ bg_border, nana::rectangle(sideBorderWidth, topBarHeight, formWidth - (2 * sideBorderWidth), formHeight - topBarHeight - bottomBarHeight) };
+	nana::picture header_bar{ *this, true };
+	nana::label title_bar_label{ *this, true };
+	nana::dragger form_dragger;
+	// Add an "invisible" label the same size as the form to act as drag trigger for form
+	nana::label form_drag_label{ *this, nana::rectangle(0, 0, formWidth, formHeight) };
+	// Add images to hold bitmaps for button states...
+	nana::paint::image img_min_normal;
+	nana::paint::image img_min_down;
+	nana::paint::image img_close_normal;
+	nana::paint::image img_close_down;
+	nana::paint::image img_header;
+	// Add pictures to act as header buttons...
+	nana::picture close_button{ *this, nana::rectangle(8, 25, 20, 15) };
+	nana::picture min_button{ *this, nana::rectangle(8, 25, 20, 15) };
+
+	nana::button btn_file{*this, nana::rectangle(18, 37, 50, 30)};
 	nana::label  lbl_status{ *this,  nana::rectangle(20,140, 260, 60) };
-	nana::label  lbl_version{ *this,  nana::rectangle(180,20, 100, 20) };
-	nana::label  lbl_sources{ *this, nana::rectangle(20, 80, 80, 20) };
-    nana::combox cmb_sources{*this, nana::rectangle(100, 80, 180, 20) };
+	nana::label  lbl_version{ *this,  nana::rectangle(formWidth - 40, formHeight - 30, 30, 20) };
+	nana::label  lbl_sources{ *this, nana::rectangle(18, 82, 70, 20) };
+    nana::combox cmb_sources{*this, nana::rectangle(90, 80, 180, 20) };
+
 	SDRunoPlugin_FranUi & m_parent;
 	IUnoPluginController & m_controller;
 

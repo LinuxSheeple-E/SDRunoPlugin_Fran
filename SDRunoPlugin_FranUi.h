@@ -46,6 +46,7 @@ public:
 	void SetSource(std::string & source);
 
 private:
+	void SaveLocation();
 	
 	SDRunoPlugin_Fran & m_parent;
 	std::thread m_thread;

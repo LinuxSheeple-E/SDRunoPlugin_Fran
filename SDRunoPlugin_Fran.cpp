@@ -60,7 +60,7 @@ void SDRunoPlugin_Fran::AnnotatorProcess(std::vector<IUnoAnnotatorItem>& items)
 		return;
 	items.clear();
 	// for now just output up to MAX_ANNOTATORS centered on VFO Frequency
-	ai.power = -100;  // For now just space things out
+	ai.power = -110;  // For now just space things out
 	i = 0;
 	recPtr = vfoPtr;
 	if (recPtr > stationRecords.begin())
@@ -71,9 +71,9 @@ void SDRunoPlugin_Fran::AnnotatorProcess(std::vector<IUnoAnnotatorItem>& items)
 			if (BuildAnnotatorItem(recPtr, ai, tm))
 			{
 				items.emplace_back(ai);
-				ai.power += 5;
+				ai.power += 6;
 				if (ai.power > -40)
-					ai.power = -100;
+					ai.power = -110;
 				i++;
 			}
 			recPtr--;
@@ -87,8 +87,8 @@ void SDRunoPlugin_Fran::AnnotatorProcess(std::vector<IUnoAnnotatorItem>& items)
 		if (BuildAnnotatorItem(recPtr, ai, tm))
 		{
 			items.emplace_back(ai);
-			ai.power -= 5;
-			if (ai.power < -100)
+			ai.power -= 6;
+			if (ai.power < -110)
 				ai.power = -40;
 			i++;
 		}

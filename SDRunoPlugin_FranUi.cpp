@@ -84,6 +84,14 @@ int SDRunoPlugin_FranUi::LoadY()
 	return stoi(tmp);
 }
 
+void SDRunoPlugin_FranUi::SaveLocation()
+{
+	std::lock_guard<std::mutex> l(m_lock);
+	nana::point position = m_form->pos();
+	m_controller.SetConfigurationKey("Fran.X", std::to_string(position.x));
+	m_controller.SetConfigurationKey("Fran.Y", std::to_string(position.y));
+}
+
 // Handle events from SDRuno
 void SDRunoPlugin_FranUi::HandleEvent(const UnoEvent& ev)
 {
@@ -113,6 +121,10 @@ void SDRunoPlugin_FranUi::HandleEvent(const UnoEvent& ev)
 		break;
 
 	case UnoEvent::SavingWorkspace:
+		SaveLocation();
+		break;
+	case UnoEvent::ClosingDown:
+		FormClosed();
 		break;
 
 	default:
