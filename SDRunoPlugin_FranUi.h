@@ -57,7 +57,4 @@ private:
 	std::mutex m_lock;
 
 	IUnoPluginController & m_controller;
-	double m_vfoFreq = 0.0;
-	double m_centerFreq = 0.0;
-	double m_sampleRate = 0.0;
 };

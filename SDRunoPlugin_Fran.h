@@ -9,7 +9,28 @@
 
 #include "SDRunoPlugin_FranUi.h"
 
-constexpr auto MAX_ANNOTATORS = 64;  // For now SDRuno only supports 64 annotators
+#if UNOPLUGINAPIVERSION > 2
+#error "Unsupported Plugin Version - Update Code"
+#endif
+
+#if UNOPLUGINAPIVERSION < 2
+#pragma message ("WARNING: Reduced Functionality - Update Plugin API")
+#endif
+
+// Note: SP1 Window Size (max/min frequency and max/min power) is only directly provided in API Version 2 and above
+struct sSP1Params {
+	double minFreq;
+	double maxFreq;
+	double centerFreq;
+	double sampleRate;
+	double vfoFreq;
+	int minPower;
+	int maxPower;
+};
+
+extern struct sSP1Params SP1Params;
+
+constexpr auto MAX_ANNOTATORS = 64;  // SDRuno only supports 64 annotators
 
 /* CSV Format is geared toward using SWSKEDS group at groups.io for source
 Frequency, M, Station, On, Off, Language, Site, TX_Country, Days, Target, Notes, Pwr, Azi, Org_Country, Source, Date
@@ -53,7 +74,7 @@ public:
 
 	std::string & loadSwSkedsCsvFile(nana::filebox::path_type file);
 	std::string & loadS1bCsvFile(nana::filebox::path_type file);
-	void CalculateLimits(double vfoFreq, double centerFreq, double sampleRate);
+	void CalculateLimits();
 	void DeleteStations();
 	void DeleteSources();
 	void SetSource(std::string & s);

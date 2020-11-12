@@ -19,6 +19,8 @@ static long long vfo_frequency = 0LL;
 static long long lower_limit = 0LL;
 static long long upper_limit = 0LL;
 
+struct sSP1Params SP1Params;
+
 static bool freq_compare(const SWSKEDSRecord &a, const SWSKEDSRecord &b)
 {
 	return (a.frequency < b.frequency);
@@ -60,7 +62,7 @@ void SDRunoPlugin_Fran::AnnotatorProcess(std::vector<IUnoAnnotatorItem>& items)
 		return;
 	items.clear();
 	// for now just output up to MAX_ANNOTATORS centered on VFO Frequency
-	ai.power = -110;  // For now just space things out
+	ai.power = SP1Params.minPower;  // For now just space things out
 	i = 0;
 	recPtr = vfoPtr;
 	if (recPtr > stationRecords.begin())
@@ -72,15 +74,15 @@ void SDRunoPlugin_Fran::AnnotatorProcess(std::vector<IUnoAnnotatorItem>& items)
 			{
 				items.emplace_back(ai);
 				ai.power += 6;
-				if (ai.power > -40)
-					ai.power = -110;
+				if (ai.power > SP1Params.maxPower)
+					ai.power = SP1Params.minPower;
 				i++;
 			}
 			recPtr--;
 
 		}
 	}
-	ai.power = -40;
+	ai.power = SP1Params.maxPower;
 	recPtr = vfoPtr;
 	while ((i < MAX_ANNOTATORS) && (recPtr < stationRecords.end()))
 	{
@@ -88,8 +90,8 @@ void SDRunoPlugin_Fran::AnnotatorProcess(std::vector<IUnoAnnotatorItem>& items)
 		{
 			items.emplace_back(ai);
 			ai.power -= 6;
-			if (ai.power < -110)
-				ai.power = -40;
+			if (ai.power < SP1Params.minPower)
+				ai.power = SP1Params.maxPower;
 			i++;
 		}
 		++recPtr;
@@ -166,11 +168,11 @@ std::string & SDRunoPlugin_Fran::loadS1bCsvFile(nana::filebox::path_type file)
 	return result;
 }
 
-void SDRunoPlugin_Fran::CalculateLimits(double vfoFreq, double centerFreq, double sampleRate)
+void SDRunoPlugin_Fran::CalculateLimits()
 {
-	long long ll = static_cast<long long>(vfoFreq);
-	lower_limit = static_cast<long long>(centerFreq - (sampleRate / 2));  // Possible future use
-	upper_limit = static_cast<long long>(centerFreq + (sampleRate / 2));  // Possible future use
+	long long ll = static_cast<long long>(SP1Params.vfoFreq);
+	lower_limit = static_cast<long long>(SP1Params.minFreq);  // Possible future use
+	upper_limit = static_cast<long long>(SP1Params.maxFreq);  // Possible future use
 	if ((ll > (vfo_frequency + 7500LL)) || (ll < (vfo_frequency - 7500LL)))
 	{
 		vfo_frequency = ll;
@@ -219,7 +221,7 @@ bool SDRunoPlugin_Fran::IsStationActive(struct SWSKEDSRecord &station, short tim
 	std::vector<std::string>  months{ "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 	std::tm tm = *tmPtr; // Copy the structure in case we need to adjust it for this comparison
 	size_t pos;
-	int i;
+	unsigned int ui;
 	// Check the time first
 	if (station.on != 0 || station.off != 2400)
 	{
@@ -253,22 +255,22 @@ bool SDRunoPlugin_Fran::IsStationActive(struct SWSKEDSRecord &station, short tim
 		}
 		if (num < 1 || num > 31)
 			return true;  // a new format perhaps?
-		for (i = 0; i < daysOfWeek.size(); i++)
+		for (ui = 0; ui < daysOfWeek.size(); ui++)
 		{
-			if (station.days.find(daysOfWeek.at(i)) != std::string::npos)
+			if (station.days.find(daysOfWeek.at(ui)) != std::string::npos)
 			{
 				if (num < 1 || num > 4)
 					return true;  // a new format perhaps?
-				if ((i == tm.tm_wday) && (tm.tm_mday > ((num - 1) * 7)) && (tm.tm_mday <= (num * 7)))
+				if ((ui == tm.tm_wday) && (tm.tm_mday > ((num - 1) * 7)) && (tm.tm_mday <= (num * 7)))
 					return true;
 				return false;
 			}
 		}
-		for (i = 0; i < months.size(); i++)
+		for (ui = 0; ui < months.size(); ui++)
 		{
-			if (station.days.find(months.at(i)) != std::string::npos)
+			if (station.days.find(months.at(ui)) != std::string::npos)
 			{
-				if (i == tm.tm_mon && num == tm.tm_mday)
+				if (ui == tm.tm_mon && num == tm.tm_mday)
 					return true;
 				return false;
 			}
@@ -277,11 +279,11 @@ bool SDRunoPlugin_Fran::IsStationActive(struct SWSKEDSRecord &station, short tim
 			return true;
 		return false;
 	}
-	for (i = 0; i < daysOfWeek.size(); i++)  // Just do the days of the week
+	for (ui = 0; ui < daysOfWeek.size(); ui++)  // Just do the days of the week
 	{
-		if (station.days.find(daysOfWeek.at(i)) != std::string::npos)
+		if (station.days.find(daysOfWeek.at(ui)) != std::string::npos)
 		{
-			if (i == tm.tm_wday)
+			if (ui == tm.tm_wday)
 				return true;
 			return false;
 		}

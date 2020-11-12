@@ -25,7 +25,7 @@
 #include <io.h>
 #include <shlobj.h>
 
-constexpr auto VERSION = "V0.4";
+constexpr auto VERSION = "V0.5";
 
 // Form constructor with handles to parent and uno controller - launches form Setup
 SDRunoPlugin_FranForm::SDRunoPlugin_FranForm(SDRunoPlugin_FranUi& parent, IUnoPluginController& controller) :
@@ -313,6 +313,15 @@ void SDRunoPlugin_FranForm::Setup()
 
 	cmb_sources.events().selected([&](const nana::arg_combox & ar_cbx) {pick_source(ar_cbx.widget.text(ar_cbx.widget.option()));  });
 	cmb_sources.tooltip("Select source");
+
+	delete[] borderPixels;
+	delete[] innerPixels;
+	delete[] closePixels;
+	delete[] closeoverPixels;
+	delete[] minPixels;
+	delete[] minoverPixels;
+	delete[] barPixels;
+	delete[] barfocusedPixels;
 
 
 }

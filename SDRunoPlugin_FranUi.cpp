@@ -36,10 +36,21 @@ SDRunoPlugin_FranUi::SDRunoPlugin_FranUi(SDRunoPlugin_Fran& parent, IUnoPluginCo
 {
 	m_thread = std::thread(&SDRunoPlugin_FranUi::ShowUi, this);
 	m_started = m_controller.IsStreamingEnabled(0);
-	m_centerFreq = m_controller.GetCenterFrequency(0);
-	m_sampleRate = m_controller.GetSampleRate(0);
-	m_vfoFreq = m_controller.GetVfoFrequency(0);
-	m_parent.CalculateLimits(m_vfoFreq, m_centerFreq, m_sampleRate);
+	SP1Params.centerFreq = m_controller.GetCenterFrequency(0);
+	SP1Params.sampleRate = m_controller.GetSampleRate(0);
+	SP1Params.vfoFreq = m_controller.GetVfoFrequency(0);
+#if UNOPLUGINAPIVERSION == 2
+	SP1Params.minFreq = m_controller.GetSP1MinFrequency(0);
+	SP1Params.maxFreq = m_controller.GetSP1MaxFrequency(0);
+	SP1Params.minPower = m_controller.GetSP1MinPower(0) + 10;
+	SP1Params.maxPower = m_controller.GetSP1MaxPower(0) - 10;
+#else
+	SP1Params.minFreq = SP1Params.centerFreq - (SP1Params.sampleRate / 2.0);
+	SP1Params.maxFreq = SP1Params.centerFreq + (SP1Params.sampleRate / 2.0);
+	SP1Params.minPower = -110;
+	SP1Params.maxPower = -40;
+#endif
+	m_parent.CalculateLimits();
 
 }
 
@@ -98,18 +109,26 @@ void SDRunoPlugin_FranUi::HandleEvent(const UnoEvent& ev)
 	switch (ev.GetType())
 	{
 	case UnoEvent::FrequencyChanged:
-		m_vfoFreq = m_controller.GetVfoFrequency(0);
-		m_parent.CalculateLimits(m_vfoFreq, m_centerFreq, m_sampleRate);
+		SP1Params.vfoFreq = m_controller.GetVfoFrequency(0);
+		m_parent.CalculateLimits();
 		break;
 
 	case UnoEvent::CenterFrequencyChanged:
-		m_centerFreq = m_controller.GetCenterFrequency(0);
-		m_parent.CalculateLimits(m_vfoFreq, m_centerFreq, m_sampleRate);
+		SP1Params.centerFreq = m_controller.GetCenterFrequency(0);
+#if UNOPLUGINAPIVERSION == 1
+		SP1Params.minFreq = SP1Params.centerFreq - (SP1Params.sampleRate / 2.0);
+		SP1Params.maxFreq = SP1Params.centerFreq + (SP1Params.sampleRate / 2.0);
+#endif
+		m_parent.CalculateLimits();
 		break;
 
 	case UnoEvent::SampleRateChanged:
-		m_sampleRate = m_controller.GetSampleRate(0);
-		m_parent.CalculateLimits(m_vfoFreq, m_centerFreq, m_sampleRate);
+		SP1Params.sampleRate = m_controller.GetSampleRate(0);
+#if UNOPLUGINAPIVERSION == 1
+		SP1Params.minFreq = SP1Params.centerFreq - (SP1Params.sampleRate / 2.0);
+		SP1Params.maxFreq = SP1Params.centerFreq + (SP1Params.sampleRate / 2.0);
+#endif
+		m_parent.CalculateLimits();
 		break;
 
 	case UnoEvent::StreamingStarted:
@@ -123,10 +142,27 @@ void SDRunoPlugin_FranUi::HandleEvent(const UnoEvent& ev)
 	case UnoEvent::SavingWorkspace:
 		SaveLocation();
 		break;
-	case UnoEvent::ClosingDown:
+#if UNOPLUGINAPIVERSION == 2
+	case UnoEvent::ClosingDown:  // Actually added in 1.40.1 while keeping plugin at version 1
 		FormClosed();
 		break;
-
+	case UnoEvent::SP1MinFreqChanged:
+		SP1Params.minFreq = m_controller.GetSP1MinFrequency(0);
+		m_parent.CalculateLimits();
+		break;
+	case UnoEvent::SP1MaxFreqChanged:
+		SP1Params.maxFreq = m_controller.GetSP1MaxFrequency(0);
+		m_parent.CalculateLimits();
+		break;
+	case UnoEvent::SP1MinPowerChanged:
+		SP1Params.minPower = m_controller.GetSP1MinPower(0) + 10;
+		m_parent.CalculateLimits();
+		break;
+	case UnoEvent::SP1MaxPowerChanged:
+		SP1Params.maxPower = m_controller.GetSP1MaxPower(0) - 10;
+		m_parent.CalculateLimits();
+		break;
+#endif
 	default:
 		break;
 	}
@@ -148,7 +184,7 @@ void SDRunoPlugin_FranUi::ProcessFiles(std::vector<nana::filebox::path_type>&  f
 	m_parent.StationFrequencySort(); // Files must be in frequency order
 	m_parent.EnumerateSources();
 	m_form->LoadSources(m_parent.GetSources());
-	m_parent.CalculateLimits(m_vfoFreq, m_centerFreq, m_sampleRate);
+	m_parent.CalculateLimits();
 }
 
 void SDRunoPlugin_FranUi::SetSource(std::string & source)
