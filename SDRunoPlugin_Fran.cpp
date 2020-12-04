@@ -4,6 +4,7 @@
 #include <vector>
 #include <sstream>
 #include <chrono>
+#include <Windows.h>
 #include "csvlib/csv.h"
 
 #include "SDRunoPlugin_Fran.h"
@@ -31,6 +32,13 @@ SDRunoPlugin_Fran::SDRunoPlugin_Fran(IUnoPluginController& controller) :
 	m_form(*this, controller),
 	m_worker(nullptr)
 {
+	GetAppDirectory();
+	if (!m_AppDir.empty())
+	{
+		m_IniFile = m_AppDir;
+		m_IniFile /= L"SDRuno.ini";
+		GetIniParameters();
+	}
 	m_controller.RegisterAnnotator(this);
 }
 
@@ -373,4 +381,34 @@ bool SDRunoPlugin_Fran::BuildAnnotatorItem(std::vector<struct SWSKEDSRecord>::it
 	}
 	return false;
 
+}
+// Get the directory where the .ini file is
+void SDRunoPlugin_Fran::GetAppDirectory()
+{
+	DWORD size;
+	LPTSTR directoryStr;
+	size = GetCurrentDirectory(0, NULL);
+	directoryStr = new WCHAR[size];
+	if (GetCurrentDirectory(size, directoryStr))
+	{
+		m_AppDir = std::filesystem::path(directoryStr);
+	}
+	delete[] directoryStr;
+}
+// Basically cheat and get various useful information from the main ini file
+void SDRunoPlugin_Fran::GetIniParameters()
+{
+	wchar_t buffer[513];
+	GetPrivateProfileString(L"Inst0\\Main", L"sPluginDirectory", m_AppDir.c_str(), buffer, 513, m_IniFile.c_str());
+	m_PluginDir = buffer;
+	GetPrivateProfileString(L"Inst0\\Main", L"sMemoryFilePath", m_AppDir.c_str(), buffer, 513, m_IniFile.c_str());
+	m_MemoryFileDir = buffer;
+}
+std::filesystem::path SDRunoPlugin_Fran::GetPluginDir()
+{
+	return m_PluginDir;
+}
+std::filesystem::path SDRunoPlugin_Fran::GetMemoryFileDir()
+{
+	return m_MemoryFileDir;
 }

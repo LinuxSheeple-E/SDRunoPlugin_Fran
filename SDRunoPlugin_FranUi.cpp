@@ -144,7 +144,7 @@ void SDRunoPlugin_FranUi::HandleEvent(const UnoEvent& ev)
 		break;
 #if UNOPLUGINAPIVERSION == 2
 	case UnoEvent::ClosingDown:  // Actually added in 1.40.1 while keeping plugin at version 1
-		FormClosed();
+		// SaveSettings();
 		break;
 	case UnoEvent::SP1MinFreqChanged:
 		SP1Params.minFreq = m_controller.GetSP1MinFrequency(0);
@@ -196,5 +196,14 @@ void SDRunoPlugin_FranUi::SetSource(std::string & source)
 // Required to make sure the plugin is correctly unloaded when closed
 void SDRunoPlugin_FranUi::FormClosed()
 {
+	// SaveSettings();
 	m_controller.RequestUnload(&m_parent);
+}
+std::filesystem::path SDRunoPlugin_FranUi::GetPluginDir()
+{
+	return m_parent.GetPluginDir();
+}
+std::filesystem::path SDRunoPlugin_FranUi::GetMemoryFileDir()
+{
+	return m_parent.GetMemoryFileDir();
 }

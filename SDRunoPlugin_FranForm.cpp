@@ -332,6 +332,7 @@ void SDRunoPlugin_FranForm::pick_file(bool is_open)
 	fbox.add_filter("SWSkeds", "*.csv");
 	fbox.add_filter("Bank", "*.s1b");
 	fbox.add_filter("All Files", "*.*");
+	fbox.init_path(m_parent.GetPluginDir());
 	fbox.allow_multi_select(true);
 	m_files = fbox.show();
 	if(!m_files.empty())
