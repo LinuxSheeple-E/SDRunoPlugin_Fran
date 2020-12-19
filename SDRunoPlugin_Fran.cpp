@@ -10,6 +10,8 @@
 #include "SDRunoPlugin_Fran.h"
 #include "SDRunoPlugin_FranUi.h"
 
+constexpr int FONT_HEIGHT = 18; // The height of the font used by SDRuno for annotations (experimentally derived)
+
 // There is only one "database" so make it static 
 static std::vector<struct SWSKEDSRecord> stationRecords;
 static std::vector<struct SWSKEDSRecord>::iterator vfoPtr;
@@ -57,6 +59,7 @@ void SDRunoPlugin_Fran::WorkerFunction()
 {
 	// Worker Function Code Goes Here
 }
+
 // This function is called by SDRuno to fetch the frequency annotators
 void SDRunoPlugin_Fran::AnnotatorProcess(std::vector<IUnoAnnotatorItem>& items)
 {
@@ -68,9 +71,8 @@ void SDRunoPlugin_Fran::AnnotatorProcess(std::vector<IUnoAnnotatorItem>& items)
 	std::tm *tm = std::gmtime(&t);
 	if (stationRecords.empty() || !valid)
 		return;
-	items.clear();
 	// for now just output up to MAX_ANNOTATORS centered on VFO Frequency
-	ai.power = SP1Params.minPower;  // For now just space things out
+	ai.power = SP1Params.yMinALimit;  // For now just space things out
 	i = 0;
 	recPtr = vfoPtr;
 	if (recPtr > stationRecords.begin())
@@ -81,25 +83,25 @@ void SDRunoPlugin_Fran::AnnotatorProcess(std::vector<IUnoAnnotatorItem>& items)
 			if (BuildAnnotatorItem(recPtr, ai, tm))
 			{
 				items.emplace_back(ai);
-				ai.power += 6;
-				if (ai.power > SP1Params.maxPower)
-					ai.power = SP1Params.minPower;
+				ai.power += SP1Params.yIncrement;
+				if (ai.power > SP1Params.yMaxALimit)
+					ai.power = SP1Params.yMinALimit;
 				i++;
 			}
 			recPtr--;
 
 		}
 	}
-	ai.power = SP1Params.maxPower;
+	ai.power = SP1Params.yMaxALimit;
 	recPtr = vfoPtr;
 	while ((i < MAX_ANNOTATORS) && (recPtr < stationRecords.end()))
 	{
 		if (BuildAnnotatorItem(recPtr, ai, tm))
 		{
 			items.emplace_back(ai);
-			ai.power -= 6;
-			if (ai.power < SP1Params.minPower)
-				ai.power = SP1Params.maxPower;
+			ai.power -= SP1Params.yIncrement;
+			if (ai.power < SP1Params.yMinALimit)
+				ai.power = SP1Params.yMaxALimit;
 			i++;
 		}
 		++recPtr;
@@ -176,12 +178,19 @@ std::string & SDRunoPlugin_Fran::loadS1bCsvFile(nana::filebox::path_type file)
 	return result;
 }
 
+void SDRunoPlugin_Fran::CalculateDisplayFactors()
+{
+	SP1Params.yIncrement = (((SP1Params.maxPower - SP1Params.minPower) * FONT_HEIGHT) + SP1Params.ySpectrumSize) / (SP1Params.ySpectrumSize);
+	SP1Params.yMinALimit = SP1Params.minPower + (SP1Params.yIncrement * 2);
+	SP1Params.yMaxALimit = SP1Params.maxPower - SP1Params.yIncrement;
+}
+
 void SDRunoPlugin_Fran::CalculateLimits()
 {
 	long long ll = static_cast<long long>(SP1Params.vfoFreq);
 	lower_limit = static_cast<long long>(SP1Params.minFreq);  // Possible future use
 	upper_limit = static_cast<long long>(SP1Params.maxFreq);  // Possible future use
-	if ((ll > (vfo_frequency + 7500LL)) || (ll < (vfo_frequency - 7500LL)))
+	if ((ll > (vfo_frequency + 2500LL)) || (ll < (vfo_frequency - 2500LL)))
 	{
 		vfo_frequency = ll;
 		if (stationRecords.empty())
@@ -395,14 +404,27 @@ void SDRunoPlugin_Fran::GetAppDirectory()
 	}
 	delete[] directoryStr;
 }
-// Basically cheat and get various useful information from the main ini file
+ // Get useful information from the main SDRuno ini file and figure out parameters.
+ // Note: Currently does not account for user changing or resizing the workspace!
 void SDRunoPlugin_Fran::GetIniParameters()
 {
+	int i, iWorkspace;
 	wchar_t buffer[513];
 	GetPrivateProfileString(L"Inst0\\Main", L"sPluginDirectory", m_AppDir.c_str(), buffer, 513, m_IniFile.c_str());
 	m_PluginDir = buffer;
 	GetPrivateProfileString(L"Inst0\\Main", L"sMemoryFilePath", m_AppDir.c_str(), buffer, 513, m_IniFile.c_str());
 	m_MemoryFileDir = buffer;
+	iWorkspace = GetPrivateProfileInt(L"Inst0\\Main", L"iCurrentWorkspace", 0, m_IniFile.c_str());
+	swprintf(buffer, L"Inst0\\VRX0\\Workspace%d", iWorkspace);
+	SP1Params.xSize = GetPrivateProfileInt(buffer, L"iSP1PanelWidth", 800, m_IniFile.c_str());
+	SP1Params.ySize = GetPrivateProfileInt(buffer, L"iSP1PanelHeight", 600, m_IniFile.c_str());
+	GetPrivateProfileString(L"Inst0\\VRX0\\SP1", L"fSpectrumWaterfallDisplayShare", m_AppDir.c_str(), buffer, 513, m_IniFile.c_str());
+	SP1Params.waterfallRatio = _wtof(buffer);
+	SP1Params.ySpectrumSize = static_cast<int>(ceil(static_cast<double>(SP1Params.ySize) * SP1Params.waterfallRatio));
+	i = GetPrivateProfileInt(L"Inst0\\VRX0\\SP1", L"iSpectrumBase", 50, m_IniFile.c_str());
+	SP1Params.minPower = (i == 0) ? -160 :-160 + (i*4/5);
+	SP1Params.maxPower = SP1Params.minPower + 10 + (200 - GetPrivateProfileInt(L"Inst0\\VRX0\\SP1", L"iSpectrumRange", 50, m_IniFile.c_str())) * 3 / 4;
+	CalculateDisplayFactors();
 }
 std::filesystem::path SDRunoPlugin_Fran::GetPluginDir()
 {

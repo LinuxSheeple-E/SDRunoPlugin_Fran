@@ -26,6 +26,15 @@ struct sSP1Params {
 	double vfoFreq;
 	int minPower;
 	int maxPower;
+	// Read from the main inifile
+	int xSize;
+	int ySize;
+	double waterfallRatio;
+	// Calculated
+	int ySpectrumSize;
+	int yMinALimit;
+	int yMaxALimit;
+	int yIncrement;
 };
 
 extern struct sSP1Params SP1Params;
@@ -74,6 +83,7 @@ public:
 
 	std::string & loadSwSkedsCsvFile(nana::filebox::path_type file);
 	std::string & loadS1bCsvFile(nana::filebox::path_type file);
+	void CalculateDisplayFactors();
 	void CalculateLimits();
 	void DeleteStations();
 	void DeleteSources();

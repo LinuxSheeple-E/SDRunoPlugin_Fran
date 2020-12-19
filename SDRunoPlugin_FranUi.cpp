@@ -42,13 +42,12 @@ SDRunoPlugin_FranUi::SDRunoPlugin_FranUi(SDRunoPlugin_Fran& parent, IUnoPluginCo
 #if UNOPLUGINAPIVERSION == 2
 	SP1Params.minFreq = m_controller.GetSP1MinFrequency(0);
 	SP1Params.maxFreq = m_controller.GetSP1MaxFrequency(0);
-	SP1Params.minPower = m_controller.GetSP1MinPower(0) + 10;
-	SP1Params.maxPower = m_controller.GetSP1MaxPower(0) - 10;
+	SP1Params.minPower = m_controller.GetSP1MinPower(0);
+	SP1Params.maxPower = m_controller.GetSP1MaxPower(0);
 #else
 	SP1Params.minFreq = SP1Params.centerFreq - (SP1Params.sampleRate / 2.0);
 	SP1Params.maxFreq = SP1Params.centerFreq + (SP1Params.sampleRate / 2.0);
-	SP1Params.minPower = -110;
-	SP1Params.maxPower = -40;
+	// minPower and maxPower are initialized by the parent from the SDRuno.ini file
 #endif
 	m_parent.CalculateLimits();
 
@@ -148,18 +147,22 @@ void SDRunoPlugin_FranUi::HandleEvent(const UnoEvent& ev)
 		break;
 	case UnoEvent::SP1MinFreqChanged:
 		SP1Params.minFreq = m_controller.GetSP1MinFrequency(0);
+		m_parent.CalculateDisplayFactors();
 		m_parent.CalculateLimits();
 		break;
 	case UnoEvent::SP1MaxFreqChanged:
 		SP1Params.maxFreq = m_controller.GetSP1MaxFrequency(0);
+		m_parent.CalculateDisplayFactors();
 		m_parent.CalculateLimits();
 		break;
 	case UnoEvent::SP1MinPowerChanged:
-		SP1Params.minPower = m_controller.GetSP1MinPower(0) + 10;
+		SP1Params.minPower = m_controller.GetSP1MinPower(0);
+		m_parent.CalculateDisplayFactors();
 		m_parent.CalculateLimits();
 		break;
 	case UnoEvent::SP1MaxPowerChanged:
-		SP1Params.maxPower = m_controller.GetSP1MaxPower(0) - 10;
+		SP1Params.maxPower = m_controller.GetSP1MaxPower(0);
+		m_parent.CalculateDisplayFactors();
 		m_parent.CalculateLimits();
 		break;
 #endif

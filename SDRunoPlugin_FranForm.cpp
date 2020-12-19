@@ -25,7 +25,7 @@
 #include <io.h>
 #include <shlobj.h>
 
-constexpr auto VERSION = "V0.5";
+constexpr auto VERSION = "V0.6";
 
 // Form constructor with handles to parent and uno controller - launches form Setup
 SDRunoPlugin_FranForm::SDRunoPlugin_FranForm(SDRunoPlugin_FranUi& parent, IUnoPluginController& controller) :
