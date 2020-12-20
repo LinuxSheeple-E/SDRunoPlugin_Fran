@@ -420,7 +420,11 @@ void SDRunoPlugin_Fran::GetIniParameters()
 	SP1Params.ySize = GetPrivateProfileInt(buffer, L"iSP1PanelHeight", 600, m_IniFile.c_str());
 	GetPrivateProfileString(L"Inst0\\VRX0\\SP1", L"fSpectrumWaterfallDisplayShare", m_AppDir.c_str(), buffer, 513, m_IniFile.c_str());
 	SP1Params.waterfallRatio = _wtof(buffer);
-	SP1Params.ySpectrumSize = static_cast<int>(ceil(static_cast<double>(SP1Params.ySize) * SP1Params.waterfallRatio));
+	i = GetPrivateProfileInt(L"Inst0\\VRX0\\SP1", L"eSP1PanelMode", 0, m_IniFile.c_str());
+	if(i == 0) // SP+WF
+		SP1Params.ySpectrumSize = static_cast<int>(ceil(static_cast<double>(SP1Params.ySize) * SP1Params.waterfallRatio));
+	else // either no spectrum or full spectrum
+		SP1Params.ySpectrumSize = SP1Params.ySize;
 	i = GetPrivateProfileInt(L"Inst0\\VRX0\\SP1", L"iSpectrumBase", 50, m_IniFile.c_str());
 	SP1Params.minPower = (i == 0) ? -160 :-160 + (i*4/5);
 	SP1Params.maxPower = SP1Params.minPower + 10 + (200 - GetPrivateProfileInt(L"Inst0\\VRX0\\SP1", L"iSpectrumRange", 50, m_IniFile.c_str())) * 3 / 4;
