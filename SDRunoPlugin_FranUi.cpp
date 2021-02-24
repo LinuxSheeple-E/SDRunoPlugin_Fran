@@ -178,6 +178,8 @@ void SDRunoPlugin_FranUi::ProcessFiles(std::vector<nana::filebox::path_type>&  f
 	{
 		if(!file.extension().compare(".s1b") || !file.extension().compare(".S1B"))
 			results += m_parent.loadS1bCsvFile(file);
+		else if (!file.extension().compare(".txt") || !file.extension().compare(".TXT"))
+			results += m_parent.loadILGTxtFile(file);
 		else
 			results += m_parent.loadSwSkedsCsvFile(file);
 
@@ -190,7 +192,7 @@ void SDRunoPlugin_FranUi::ProcessFiles(std::vector<nana::filebox::path_type>&  f
 	m_parent.CalculateLimits();
 }
 
-void SDRunoPlugin_FranUi::SetSource(std::string & source)
+void SDRunoPlugin_FranUi::SetSource(const std::string & source)
 {
 	m_parent.SetSource(source);
 }

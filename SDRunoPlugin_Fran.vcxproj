@@ -74,6 +74,8 @@
       <DebugInformationFormat>None</DebugInformationFormat>
       <AdditionalIncludeDirectories>..\plugins\include;..\plugins\nana\include</AdditionalIncludeDirectories>
       <SDLCheck>false</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <EnforceTypeConversionRules>true</EnforceTypeConversionRules>
     </ClCompile>
     <Link>
       <TargetMachine>MachineX86</TargetMachine>

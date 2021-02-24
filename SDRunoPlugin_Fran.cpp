@@ -142,6 +142,143 @@ std::string & SDRunoPlugin_Fran::loadSwSkedsCsvFile(nana::filebox::path_type fil
 	return result;
 }
 
+static inline void rtrim(std::string &s) {
+	s.erase(std::find_if(s.rbegin(), s.rend(),
+		std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
+}
+
+// Unfortunately the big ILG CSV file uses the seperator character ';' in the time graph, so the text file has to be processed as a fixed field txt file
+std::string & SDRunoPlugin_Fran::loadILGTxtFile(nana::filebox::path_type file)
+{
+	struct SWSKEDSRecord sr;
+	double dTmp;
+	valid = false;
+//	io::CSVReader<26, io::trim_chars<' '>, io::no_quote_escape<';'>> inFile(file.generic_string().c_str());
+	io::LineReader inFile(file.generic_string().c_str());
+	char * pLine, * pField;
+	int lineLength;
+	char varBuff[60];
+	static char lastEntry[60] = ""; 
+	static std::string result;
+	result.clear();
+	try {
+		while ((pLine = inFile.next_line()) != nullptr)
+		{
+			lineLength = strlen(pLine);
+			pField = pLine;
+			// A # character in the first position of station is a comment and eliminate inactive or info data
+			if ((lineLength < 346) ||( pLine[8] == '#')|| ((toupper(pLine[345]) != 'C') && (toupper(pLine[345]) != 'A'))) // A short line or a comment
+				continue;
+			// Frequency       0   8
+			strncpy(varBuff, pField, 8);
+			varBuff[8] = '\0';
+			sscanf(varBuff, "%lf", &dTmp);
+			sr.frequency = static_cast<long long>(dTmp * 1000.);
+			// Station         8  30
+			pField += 8;
+			sr.station = std::string(pField, 30);
+			rtrim(sr.station);
+			if (!sr.station.compare("..."))  // eliminate unknown stations
+			{
+				continue;
+			}
+			// UTC            38   9
+			pField += 30;
+			strncpy(varBuff, pField, 4);
+			varBuff[4] = '\0';
+			sscanf(varBuff, "%hd", &sr.on);
+			pField += 5; // Skip over UTC dash, colon, or equals
+			strncpy(varBuff, pField, 4);
+			varBuff[4] = '\0';
+			sscanf(varBuff, "%hd", &sr.off);
+			if (sr.off == 0) // Fix blank records or in cases where 0000 is used instead of 2400
+				sr.off = 2400;
+			// Days           47   7
+			pField += 4;
+			sr.days = "......."; // assume inactive
+			if (*pField++ == '1')  sr.days.replace(1, 1, "m");
+			if (*pField++ == '2')  sr.days.replace(2, 1, "t");
+			if (*pField++ == '3')  sr.days.replace(3, 1, "w");
+			if (*pField++ == '4')  sr.days.replace(4, 1, "t");
+			if (*pField++ == '5')  sr.days.replace(5, 1, "t");
+			if (*pField++ == '6')  sr.days.replace(6, 1, "s");
+			if (*pField++ == '7')  sr.days.replace(0, 1, "s");
+			// Language       54  20
+			sr.language = std::string(pField, 20);
+			rtrim(sr.language);
+			// Graphic        74  48   Not Used
+			// Target        122   8
+			pField += 68;
+			sr.target = std::string(pField, 8);
+			rtrim(sr.target);
+			// Location      130  26
+			pField += 8;
+			sr.site = std::string(pField, 26);
+			rtrim(sr.site);
+			// Loc           156   3
+			pField += 26;
+			// Power         159   8
+			pField +=  3;
+			strncpy(varBuff, pField, 8);
+			varBuff[8] = '\0';
+			sscanf(varBuff, "%f", &sr.power);
+			// Azi           167   3
+			pField += 8;
+			sr.az = std::string(pField, 3);
+			// Ant           170  10   Not Used
+			// Remarks       180  16
+			pField += 13;
+			sr.notes = std::string(pField, 16);
+			rtrim(sr.notes);
+			// Mod           196   3 
+			pField += 16;
+			sr.mode = std::string(pField, 3);
+			rtrim(sr.mode);
+			// Modtype       199   6   Not Used
+			// Target Flags  205  18   Not Used - Private Data for ILG Database Only
+			// CIRAFZones    223  30   Not Used
+			// Stn           253   5   Not Used
+			// Brc           258   3   Not Used
+			// Adm           261   3   Not Used
+			// Country       264  18
+			pField += 68;
+			sr.tx_country = std::string(pField, 18);
+			rtrim(sr.tx_country);
+			// LC            282   2   Not Used
+			// Longi         284   6   Not Used
+			// Lati          290   5   Not Used
+			// Position      295  20   Not Used
+			// Notes         315  30   Not Used
+			// Status        345   1   Checked previously
+			// Year          346   4   Not Used
+			// Callsign      350  50   Not Used
+			// FDate         400   6   Not Used
+			// TDate         406   6   Not Used
+			// CFFreq        412   8   Not Used
+			// Start         420   5   Not Used
+			// Stop          425   5   Not Used
+			// UTC Graphic   430  48   Not Used
+			// GC            478  24   Not Used
+			// Total         502
+			stationRecords.emplace_back(sr);
+		}
+	}
+	// Uncaught exceptions and popup message boxes can cause SDRuno hangs.
+	catch (std::exception& e)
+	{
+		result = "ILG File Error: " + std::string(e.what()) + "\n";
+		return result;
+	}
+	if (!stationRecords.empty())
+	{
+		vfoPtr = stationRecords.begin();
+		vfo_frequency = vfoPtr->frequency;
+		valid = !stationRecords.empty();
+	}
+	result = "ILG File " + file.stem().string() + " read " + std::to_string(stationRecords.size()) + " records \n";
+	return result;
+}
+
 std::string & SDRunoPlugin_Fran::loadS1bCsvFile(nana::filebox::path_type file)
 {
 	struct SWSKEDSRecord sr;
@@ -324,7 +461,7 @@ std::vector<std::string> & SDRunoPlugin_Fran::GetSources()
 	return sourceList;
 }
 
-void SDRunoPlugin_Fran::SetSource(std::string & s)
+void SDRunoPlugin_Fran::SetSource(const std::string & s)
 {
 	if (!s.compare("ALL"))
 		source.clear();

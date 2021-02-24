@@ -79,15 +79,16 @@ public:
 	virtual void HandleEvent(const UnoEvent& ev) override;
 
 	// IUnoAnnotator
-	void AnnotatorProcess(std::vector<IUnoAnnotatorItem>& items);
+	void AnnotatorProcess(std::vector<IUnoAnnotatorItem>& items) override;
 
 	std::string & loadSwSkedsCsvFile(nana::filebox::path_type file);
+	std::string & loadILGTxtFile(nana::filebox::path_type file);
 	std::string & loadS1bCsvFile(nana::filebox::path_type file);
 	void CalculateDisplayFactors();
 	void CalculateLimits();
 	void DeleteStations();
 	void DeleteSources();
-	void SetSource(std::string & s);
+	void SetSource(const std::string & s);
 
 	std::vector<std::string> & GetSources();
 
@@ -103,7 +104,7 @@ private:
 	std::mutex m_lock;
 	SDRunoPlugin_FranUi m_form;
 
-	bool SDRunoPlugin_Fran::BuildAnnotatorItem(std::vector<struct SWSKEDSRecord>::iterator recPtr, IUnoAnnotatorItem & ai, std::tm *tm);
+	bool BuildAnnotatorItem(std::vector<struct SWSKEDSRecord>::iterator recPtr, IUnoAnnotatorItem & ai, std::tm *tm);
 	bool IsStationActive(struct SWSKEDSRecord &station, short time, std::tm * tmPtr);
 	std::vector<std::string>::iterator FindString(std::string & s, std::vector<std::string> & list);
 	void GetAppDirectory();

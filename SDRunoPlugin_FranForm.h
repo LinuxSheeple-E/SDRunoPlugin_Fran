@@ -91,7 +91,7 @@ private:
 	IUnoPluginController & m_controller;
 
 	void pick_file(bool is_open);
-	void pick_source(std::string & source);
+	void pick_source(const std::string & source);
 
 	std::vector< nana::filebox::path_type > m_files;
 };

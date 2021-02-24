@@ -43,7 +43,7 @@ public:
 	int LoadX();
 	int LoadY();
 	void ProcessFiles(std::vector <nana::filebox::path_type>& files);
-	void SetSource(std::string & source);
+	void SetSource(const std::string & source);
 	std::filesystem::path GetPluginDir();
 	std::filesystem::path GetMemoryFileDir();
 

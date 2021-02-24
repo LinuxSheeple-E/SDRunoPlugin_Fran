@@ -330,6 +330,7 @@ void SDRunoPlugin_FranForm::pick_file(bool is_open)
 	using namespace nana;
 	filebox fbox(*this, is_open);
 	fbox.add_filter("SWSkeds", "*.csv");
+	fbox.add_filter("ILGRadio", "*.txt");
 	fbox.add_filter("Bank", "*.s1b");
 	fbox.add_filter("All Files", "*.*");
 	fbox.init_path(m_parent.GetPluginDir());
@@ -338,7 +339,7 @@ void SDRunoPlugin_FranForm::pick_file(bool is_open)
 	if(!m_files.empty())
 		m_parent.ProcessFiles(m_files);
 }
-void SDRunoPlugin_FranForm::pick_source(std::string & source)
+void SDRunoPlugin_FranForm::pick_source(const std::string & source)
 {
 	m_parent.SetSource(source);
 }
