@@ -123,6 +123,7 @@ std::string & SDRunoPlugin_Fran::loadSwSkedsCsvFile(nana::filebox::path_type fil
 			sr.station = sr.station.substr(0, 63); // SDRuno annotate text has a limit of 63 characters.
 			if (sr.off == 0) // Fix blank records or in cases where 0000 is used instead of 2400
 				sr.off = 2400;
+			sr.on_date = sr.off_date = 0L;
 			stationRecords.emplace_back(sr);
 		}
 	}
@@ -147,7 +148,8 @@ static inline void rtrim(std::string &s) {
 		std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
 }
 
-// Unfortunately the big ILG CSV file uses the seperator character ';' in the time graph, so the text file has to be processed as a fixed field txt file
+// Unfortunately the big ILG Radio CSV file uses the seperator character ';' in the time graph, so the text file has to be processed as a fixed field txt file.
+// The ILG Radio format is converted when needed to the SWSkeds format used in the station structures
 std::string & SDRunoPlugin_Fran::loadILGTxtFile(nana::filebox::path_type file)
 {
 	struct SWSKEDSRecord sr;
@@ -158,7 +160,6 @@ std::string & SDRunoPlugin_Fran::loadILGTxtFile(nana::filebox::path_type file)
 	char * pLine, * pField;
 	int lineLength;
 	char varBuff[60];
-	static char lastEntry[60] = ""; 
 	static std::string result;
 	result.clear();
 	try {
@@ -184,6 +185,7 @@ std::string & SDRunoPlugin_Fran::loadILGTxtFile(nana::filebox::path_type file)
 			}
 			// UTC            38   9
 			pField += 30;
+			sr.on = sr.off = 0;
 			strncpy(varBuff, pField, 4);
 			varBuff[4] = '\0';
 			sscanf(varBuff, "%hd", &sr.on);
@@ -200,7 +202,7 @@ std::string & SDRunoPlugin_Fran::loadILGTxtFile(nana::filebox::path_type file)
 			if (*pField++ == '2')  sr.days.replace(2, 1, "t");
 			if (*pField++ == '3')  sr.days.replace(3, 1, "w");
 			if (*pField++ == '4')  sr.days.replace(4, 1, "t");
-			if (*pField++ == '5')  sr.days.replace(5, 1, "t");
+			if (*pField++ == '5')  sr.days.replace(5, 1, "f");
 			if (*pField++ == '6')  sr.days.replace(6, 1, "s");
 			if (*pField++ == '7')  sr.days.replace(0, 1, "s");
 			// Language       54  20
@@ -219,6 +221,7 @@ std::string & SDRunoPlugin_Fran::loadILGTxtFile(nana::filebox::path_type file)
 			pField += 26;
 			// Power         159   8
 			pField +=  3;
+			sr.power = 0.0f;
 			strncpy(varBuff, pField, 8);
 			varBuff[8] = '\0';
 			sscanf(varBuff, "%f", &sr.power);
@@ -252,8 +255,24 @@ std::string & SDRunoPlugin_Fran::loadILGTxtFile(nana::filebox::path_type file)
 			// Status        345   1   Checked previously
 			// Year          346   4   Not Used
 			// Callsign      350  50   Not Used
-			// FDate         400   6   Not Used
+			// FDate         400   6
+			pField += 136;
+			sr.on_date = 0L;
+			strncpy(varBuff, pField, 6);
+			// Swap to make DDMMYY into YYMMDD
+			strncpy(varBuff+4, pField, 2);
+			strncpy(varBuff, pField+4, 2);
+			varBuff[6] = '\0';
+			sscanf(varBuff, "%ld", &sr.on_date);
 			// TDate         406   6   Not Used
+			pField += 6;
+			sr.off_date = 0L;
+			strncpy(varBuff, pField, 6);
+			// Swap to make DDMMYY into YYMMDD
+			strncpy(varBuff + 4, pField, 2);
+			strncpy(varBuff, pField + 4, 2);
+			varBuff[6] = '\0';
+			sscanf(varBuff, "%ld", &sr.off_date);
 			// CFFreq        412   8   Not Used
 			// Start         420   5   Not Used
 			// Stop          425   5   Not Used
@@ -295,6 +314,7 @@ std::string & SDRunoPlugin_Fran::loadS1bCsvFile(nana::filebox::path_type file)
 			sr.on = 0;
 			sr.off = 2400;
 			sr.days = "smtwtfs";
+			sr.on_date = sr.off_date = 0L;
 			sr.source = file.stem().string();
 			stationRecords.emplace_back(sr);
 		}
@@ -360,7 +380,7 @@ void SDRunoPlugin_Fran::CalculateLimits()
 
 bool SDRunoPlugin_Fran::IsStationActive(struct SWSKEDSRecord &station, short time, std::tm * tmPtr)
 {
-	// This is complicated since several formats are used for the Days field.
+	// This is complicated since SWSkeds uses several formats in the Days field.
 	// smtwtfs varations are the most common with off days marked with .
 	// 15th    varations of the day of the month
 	// Jun 21  varations of three letter month and day of month
@@ -376,7 +396,7 @@ bool SDRunoPlugin_Fran::IsStationActive(struct SWSKEDSRecord &station, short tim
 	std::tm tm = *tmPtr; // Copy the structure in case we need to adjust it for this comparison
 	size_t pos;
 	unsigned int ui;
-	// Check the time first
+	// Check the time first in case broadcast goes through midnight
 	if (station.on != 0 || station.off != 2400)
 	{
 		if (station.on > station.off)
@@ -395,6 +415,17 @@ bool SDRunoPlugin_Fran::IsStationActive(struct SWSKEDSRecord &station, short tim
 			if (time < station.on || time > station.off)
 				return false;
 		}
+	}
+	// Date range is second. 
+	//   Note: There are two ways to specify a single date, a date range used by ILG Radio and a month day in the days field used by SWSkeds.
+	if (station.on_date != 0 && station.off_date != 0)
+	{
+		long bcdDate = (tm.tm_year % 100) * 10000 + (tm.tm_mon + 1) * 100 + tm.tm_mday;
+		if (bcdDate < station.on_date || bcdDate > station.off_date)
+			return false;
+		// Sometimes the days field does not reflect the actual day of the week on single day ranges so say it is active
+		if (station.on_date == station.off_date)
+			return true;
 	}
 	// A number is either day of month or count of dow
 	if ((pos = station.days.find_first_of(digits, 0)) != std::string::npos) // TODO: Add npos where needed

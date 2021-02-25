@@ -63,6 +63,9 @@ struct SWSKEDSRecord {
 	std::string org_country;
 	std::string source;
 	std::string date;
+	// Added for date ranges used in ILG Radio files
+	long on_date;  // In YYMMDD or MMDD format
+	long off_date;  // In YYMMDD or MMDD format
 };
 
 class SDRunoPlugin_Fran : public IUnoPlugin, public IUnoAnnotator
