@@ -5,6 +5,8 @@
 #include <sstream>
 #include <chrono>
 #include <Windows.h>
+#include <shlobj.h>
+
 #include "csvlib/csv.h"
 
 #include "SDRunoPlugin_Fran.h"
@@ -34,13 +36,50 @@ SDRunoPlugin_Fran::SDRunoPlugin_Fran(IUnoPluginController& controller) :
 	m_form(*this, controller),
 	m_worker(nullptr)
 {
+	// Reasonable values in case the configuration is messed up
+	SP1Params.xSize = 800;
+	SP1Params.ySize = 600;
+	SP1Params.waterfallRatio = 0.5;
+	SP1Params.ySpectrumSize = static_cast<int>(ceil(static_cast<double>(SP1Params.ySize) * SP1Params.waterfallRatio));
+	SP1Params.minPower = -120;
+	SP1Params.maxPower = -30;
+	// Now fill in the real values
+	GetCurDirectory();
 	GetAppDirectory();
 	if (!m_AppDir.empty())
 	{
 		m_IniFile = m_AppDir;
 		m_IniFile /= L"SDRuno.ini";
-		GetIniParameters();
 	}
+	if (!m_IniFile.empty())
+	{
+		// Get useful information from the main SDRuno ini file and figure out parameters.
+		// Note: Currently does not account for user changing or resizing the workspace!
+		int i, iWorkspace;
+		wchar_t buffer[513];
+		GetPrivateProfileString(L"Inst0\\Main", L"sPluginDirectory", m_AppDir.c_str(), buffer, 513, m_IniFile.c_str());
+		m_PluginDir = buffer;
+		GetPrivateProfileString(L"Inst0\\Main", L"sMemoryFilePath", m_AppDir.c_str(), buffer, 513, m_IniFile.c_str());
+		m_MemoryFileDir = buffer;
+		iWorkspace = GetPrivateProfileInt(L"Inst0\\Main", L"iCurrentWorkspace", 0, m_IniFile.c_str());
+		swprintf(buffer, L"Inst0\\VRX0\\Workspace%d", iWorkspace);
+		SP1Params.xSize = GetPrivateProfileInt(buffer, L"iSP1PanelWidth", 800, m_IniFile.c_str());
+		SP1Params.ySize = GetPrivateProfileInt(buffer, L"iSP1PanelHeight", 600, m_IniFile.c_str());
+		GetPrivateProfileString(L"Inst0\\VRX0\\SP1", L"fSpectrumWaterfallDisplayShare", m_AppDir.c_str(), buffer, 513, m_IniFile.c_str());
+		SP1Params.waterfallRatio = _wtof(buffer);
+		i = GetPrivateProfileInt(L"Inst0\\VRX0\\SP1", L"eSP1PanelMode", 0, m_IniFile.c_str());
+		if (i == 0 && SP1Params.waterfallRatio > 0.01)  // SP+WF and at least a minimal spectrum display
+		{
+			SP1Params.ySpectrumSize = static_cast<int>(ceil(static_cast<double>(SP1Params.ySize) * SP1Params.waterfallRatio));
+		}
+		else // either no spectrum or full spectrum
+			SP1Params.ySpectrumSize = SP1Params.ySize;
+		i = GetPrivateProfileInt(L"Inst0\\VRX0\\SP1", L"iSpectrumBase", 50, m_IniFile.c_str());
+		SP1Params.minPower = (i == 0) ? -160 : -160 + (i * 4 / 5);
+		SP1Params.maxPower = SP1Params.minPower + 10 + (200 - GetPrivateProfileInt(L"Inst0\\VRX0\\SP1", L"iSpectrumRange", 50, m_IniFile.c_str())) * 3 / 4;
+	}
+	// else things are messed up but continue
+	CalculateDisplayFactors();
 	m_controller.RegisterAnnotator(this);
 }
 
@@ -562,41 +601,32 @@ bool SDRunoPlugin_Fran::BuildAnnotatorItem(std::vector<struct SWSKEDSRecord>::it
 // Get the directory where the .ini file is
 void SDRunoPlugin_Fran::GetAppDirectory()
 {
+	PWSTR tmpPath;
+	/* Attempt to get the user's SDRuno AppData folder
+	  *
+	  * Microsoft Docs:
+	  * https://docs.microsoft.com/en-us/windows/win32/api/shlobj_core/nf-shlobj_core-shgetknownfolderpath
+	  * https://docs.microsoft.com/en-us/windows/win32/shell/knownfolderid
+	  */
+	if (SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &tmpPath) == S_OK)
+	{
+		m_AppDir = tmpPath;
+		m_AppDir /= L"SDRplay";
+	}
+	CoTaskMemFree(tmpPath);
+}
+// Get the current directory, usually the same as the AppDirectory depending on SDRuno version 
+void SDRunoPlugin_Fran::GetCurDirectory()
+{
 	DWORD size;
 	LPTSTR directoryStr;
 	size = GetCurrentDirectory(0, NULL);
 	directoryStr = new WCHAR[size];
 	if (GetCurrentDirectory(size, directoryStr))
 	{
-		m_AppDir = std::filesystem::path(directoryStr);
+		m_CurDir = std::filesystem::path(directoryStr);
 	}
 	delete[] directoryStr;
-}
- // Get useful information from the main SDRuno ini file and figure out parameters.
- // Note: Currently does not account for user changing or resizing the workspace!
-void SDRunoPlugin_Fran::GetIniParameters()
-{
-	int i, iWorkspace;
-	wchar_t buffer[513];
-	GetPrivateProfileString(L"Inst0\\Main", L"sPluginDirectory", m_AppDir.c_str(), buffer, 513, m_IniFile.c_str());
-	m_PluginDir = buffer;
-	GetPrivateProfileString(L"Inst0\\Main", L"sMemoryFilePath", m_AppDir.c_str(), buffer, 513, m_IniFile.c_str());
-	m_MemoryFileDir = buffer;
-	iWorkspace = GetPrivateProfileInt(L"Inst0\\Main", L"iCurrentWorkspace", 0, m_IniFile.c_str());
-	swprintf(buffer, L"Inst0\\VRX0\\Workspace%d", iWorkspace);
-	SP1Params.xSize = GetPrivateProfileInt(buffer, L"iSP1PanelWidth", 800, m_IniFile.c_str());
-	SP1Params.ySize = GetPrivateProfileInt(buffer, L"iSP1PanelHeight", 600, m_IniFile.c_str());
-	GetPrivateProfileString(L"Inst0\\VRX0\\SP1", L"fSpectrumWaterfallDisplayShare", m_AppDir.c_str(), buffer, 513, m_IniFile.c_str());
-	SP1Params.waterfallRatio = _wtof(buffer);
-	i = GetPrivateProfileInt(L"Inst0\\VRX0\\SP1", L"eSP1PanelMode", 0, m_IniFile.c_str());
-	if(i == 0) // SP+WF
-		SP1Params.ySpectrumSize = static_cast<int>(ceil(static_cast<double>(SP1Params.ySize) * SP1Params.waterfallRatio));
-	else // either no spectrum or full spectrum
-		SP1Params.ySpectrumSize = SP1Params.ySize;
-	i = GetPrivateProfileInt(L"Inst0\\VRX0\\SP1", L"iSpectrumBase", 50, m_IniFile.c_str());
-	SP1Params.minPower = (i == 0) ? -160 :-160 + (i*4/5);
-	SP1Params.maxPower = SP1Params.minPower + 10 + (200 - GetPrivateProfileInt(L"Inst0\\VRX0\\SP1", L"iSpectrumRange", 50, m_IniFile.c_str())) * 3 / 4;
-	CalculateDisplayFactors();
 }
 std::filesystem::path SDRunoPlugin_Fran::GetPluginDir()
 {

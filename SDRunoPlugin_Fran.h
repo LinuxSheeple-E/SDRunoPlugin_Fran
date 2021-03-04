@@ -111,11 +111,12 @@ private:
 	bool IsStationActive(struct SWSKEDSRecord &station, short time, std::tm * tmPtr);
 	std::vector<std::string>::iterator FindString(std::string & s, std::vector<std::string> & list);
 	void GetAppDirectory();
-	void GetIniParameters();
+	void GetCurDirectory();
 
 
 	bool valid = false;
 	std::filesystem::path m_AppDir;
+	std::filesystem::path m_CurDir;
 	std::filesystem::path m_PluginDir;
 	std::filesystem::path m_MemoryFileDir;
 	std::filesystem::path m_IniFile;
