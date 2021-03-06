@@ -235,6 +235,8 @@ void SDRunoPlugin_FranForm::Setup()
 	move(posX, posY);
 
 	// Load variables for the form from the ini file (if exists)
+	m_parent.LoadColours();
+	m_parent.LoadLanguages();
 
 	const uint32_t forecolor = 0xffffff;
 
@@ -312,7 +314,13 @@ void SDRunoPlugin_FranForm::Setup()
 	lbl_sources.transparent(true);
 
 	cmb_sources.events().selected([&](const nana::arg_combox & ar_cbx) {pick_source(ar_cbx.widget.text(ar_cbx.widget.option()));  });
-	cmb_sources.tooltip("Select source");
+	cmb_sources.tooltip("Select SWSked source");
+
+	ckb_colors.fgcolor(nana::color_rgb(forecolor));
+	ckb_colors.caption("Language Colours");
+	ckb_colors.transparent(true);
+	ckb_colors.check(languageEnable);
+	ckb_colors.events().click([&] { languageEnable = ckb_colors.checked(); });
 
 	delete[] borderPixels;
 	delete[] innerPixels;

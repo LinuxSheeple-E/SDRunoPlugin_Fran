@@ -84,8 +84,9 @@ private:
 	nana::button btn_file{*this, nana::rectangle(18, 37, 50, 30)};
 	nana::label  lbl_status{ *this,  nana::rectangle(20,140, 260, 60) };
 	nana::label  lbl_version{ *this,  nana::rectangle(formWidth - 40, formHeight - 30, 30, 20) };
-	nana::label  lbl_sources{ *this, nana::rectangle(18, 82, 70, 20) };
-    nana::combox cmb_sources{*this, nana::rectangle(90, 80, 180, 20) };
+	nana::label  lbl_sources{ *this, nana::rectangle(18, 82, 70, 30) };
+    nana::combox cmb_sources{*this, nana::rectangle(90, 80, 180, 30) };
+	nana::checkbox ckb_colors{ *this,nana::rectangle(90, 37, 180, 30) };
 
 	SDRunoPlugin_FranUi & m_parent;
 	IUnoPluginController & m_controller;

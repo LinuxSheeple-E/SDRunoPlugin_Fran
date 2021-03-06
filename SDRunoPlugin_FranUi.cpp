@@ -28,6 +28,10 @@
 #include "SDRunoPlugin_FranUi.h"
 #include "SDRunoPlugin_FranForm.h"
 
+static constexpr int NUMBER_COLOURS = 9;
+static const uint32_t defaultColours[NUMBER_COLOURS] = { 0xffffffff, 0x00c000c0, 0xffffb000, 0xffff8c00, 0xffff0000, 0xffffff00, 0xff00ffff, 0xffc00000, 0xff00ff00 };
+static const char * defaultLanguages[NUMBER_COLOURS] = { "`", "English", "Mandarin", "Chinese", "Japanese", "Spanish", "French", "Russian", "Arabic" };
+
 // Ui constructor - load the Ui control into a thread
 SDRunoPlugin_FranUi::SDRunoPlugin_FranUi(SDRunoPlugin_Fran& parent, IUnoPluginController& controller) :
 	m_parent(parent),
@@ -93,6 +97,57 @@ int SDRunoPlugin_FranUi::LoadY()
 	}
 	return stoi(tmp);
 }
+// Colours need to be loaded before languages!
+void SDRunoPlugin_FranUi::LoadColours()
+{
+	int i;
+	std::string key("Fran.ColourValue"), value;
+	languageColours.resize(NUMBER_COLOURS);
+	for (i = 0; i < NUMBER_COLOURS; i++)
+	{
+		m_controller.GetConfigurationKey(key + std::to_string(i), value);
+		if (value.empty())
+		{
+			break;
+		}
+		languageColours.at(i).rgb = stoul(value, nullptr, 0);
+	}
+	for (; i < NUMBER_COLOURS; i++)
+	{
+		languageColours.at(i).rgb = defaultColours[i];
+	}
+}
+
+// Colours need to be loaded before languages!
+void SDRunoPlugin_FranUi::LoadLanguages()
+{
+	int i, count;
+	std::string key("Fran.Language"), value;
+	count = languageColours.size();
+	m_controller.GetConfigurationKey(key + "Enable", value);
+	if (value.empty())
+	{
+		value = "True";
+	}
+	if (!value.compare("0") || !value.substr(0, 1).compare("F") || !value.substr(0, 1).compare("f"))
+		languageEnable = false;
+	else
+		languageEnable = true;
+	languageColours.at(0).language = defaultLanguages[0];
+	for (i = 1; i < count; i++)
+	{
+		m_controller.GetConfigurationKey(key + std::to_string(i), value);
+		if (value.empty())
+		{
+			break;
+		}
+		languageColours.at(i).language = value;
+	}
+	for (; i < count; i++)
+	{
+		languageColours.at(i).language = defaultLanguages[i];
+	}
+}
 
 void SDRunoPlugin_FranUi::SaveLocation()
 {
@@ -100,6 +155,31 @@ void SDRunoPlugin_FranUi::SaveLocation()
 	nana::point position = m_form->pos();
 	m_controller.SetConfigurationKey("Fran.X", std::to_string(position.x));
 	m_controller.SetConfigurationKey("Fran.Y", std::to_string(position.y));
+}
+
+void SDRunoPlugin_FranUi::SaveColours()
+{
+	int i, count;
+	std::string key("Fran.ColourValue"), value;
+	count = languageColours.size();
+	for (i = 0; i < count; i++)
+	{
+		std::stringstream s;
+		s << "0x" << std::hex << languageColours.at(i).rgb;
+		m_controller.SetConfigurationKey(key + std::to_string(i), s.str());
+	}
+}
+
+void SDRunoPlugin_FranUi::SaveLanguages()
+{
+	int i, count;
+	std::string key("Fran.Language");
+	count = languageColours.size();
+	m_controller.SetConfigurationKey(key + "Enable", (languageEnable)?"True":"False");
+	for (i = 1; i < count; i++)
+	{
+		m_controller.SetConfigurationKey(key + std::to_string(i), languageColours.at(i).language);
+	}
 }
 
 // Handle events from SDRuno
@@ -143,7 +223,8 @@ void SDRunoPlugin_FranUi::HandleEvent(const UnoEvent& ev)
 		break;
 #if UNOPLUGINAPIVERSION == 2
 	case UnoEvent::ClosingDown:  // Actually added in 1.40.1 while keeping plugin at version 1
-		// SaveSettings();
+		SaveColours();
+		SaveLanguages();
 		break;
 	case UnoEvent::SP1MinFreqChanged:
 		SP1Params.minFreq = m_controller.GetSP1MinFrequency(0);
@@ -201,7 +282,8 @@ void SDRunoPlugin_FranUi::SetSource(const std::string & source)
 // Required to make sure the plugin is correctly unloaded when closed
 void SDRunoPlugin_FranUi::FormClosed()
 {
-	// SaveSettings();
+	SaveColours();
+	SaveLanguages();
 	m_controller.RequestUnload(&m_parent);
 }
 std::filesystem::path SDRunoPlugin_FranUi::GetPluginDir()

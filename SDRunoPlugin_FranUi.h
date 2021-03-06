@@ -28,6 +28,15 @@
 // Forward reference
 class SDRunoPlugin_Fran;
 
+struct sLangColour {
+	std::string language;
+	uint32_t rgb;
+};
+
+// Defined in SDRPlugin_Fran.cpp
+extern std::vector<sLangColour> languageColours;
+extern bool languageEnable;
+
 class SDRunoPlugin_FranUi
 {
 public:
@@ -42,6 +51,8 @@ public:
 
 	int LoadX();
 	int LoadY();
+	void LoadColours();
+	void LoadLanguages();
 	void ProcessFiles(std::vector <nana::filebox::path_type>& files);
 	void SetSource(const std::string & source);
 	std::filesystem::path GetPluginDir();
@@ -49,6 +60,8 @@ public:
 
 private:
 	void SaveLocation();
+	void SaveColours();
+	void SaveLanguages();
 	
 	SDRunoPlugin_Fran & m_parent;
 	std::thread m_thread;

@@ -26,6 +26,10 @@ static long long upper_limit = 0LL;
 
 struct sSP1Params SP1Params;
 
+// Structure defined in SDRPlugin_FranUI.h
+std::vector<sLangColour> languageColours;
+bool languageEnable;
+
 static bool freq_compare(const SWSKEDSRecord &a, const SWSKEDSRecord &b)
 {
 	return (a.frequency < b.frequency);
@@ -571,25 +575,19 @@ bool SDRunoPlugin_Fran::BuildAnnotatorItem(std::vector<struct SWSKEDSRecord>::it
 	{
 		ai.frequency = recPtr->frequency;
 		ai.style = AnnotatorStyleMarker;
-		// A simple color the languages scheme
-		if (!recPtr->language.compare("English"))
-			ai.rgb = 0x00c000c0;
-		else if (!recPtr->language.compare("Mandarin"))
-			ai.rgb = 0xffffb000;
-		else if (!recPtr->language.compare("Chinese"))
-			ai.rgb = 0xffff8c00;
-		else if (!recPtr->language.compare("Japanese"))
-			ai.rgb = 0xffff0000;
-		else if (!recPtr->language.compare("Spanish"))
-			ai.rgb = 0xffffff00;
-		else if (!recPtr->language.compare("French"))
-			ai.rgb = 0xff00ffff;
-		else if (!recPtr->language.compare("Russian"))
-			ai.rgb = 0xffc00000;
-		else if (!recPtr->language.compare("Arabic"))
-			ai.rgb = 0xff00ff00;
-		else
-			ai.rgb = 0xffffffff;
+		ai.rgb = languageColours.at(0).rgb; // Set the default color
+		// color the languages scheme
+		if (languageEnable)
+		{
+			for (unsigned int i = 1; i < languageColours.size(); i++)
+			{
+				if (!recPtr->language.compare(languageColours.at(i).language))
+				{
+					ai.rgb = languageColours.at(i).rgb;
+					break;
+				}
+			}
+		}
 		ai.text = recPtr->station;
 		ai.lineToFreq = 0;
 		ai.lineToPower = 0;
