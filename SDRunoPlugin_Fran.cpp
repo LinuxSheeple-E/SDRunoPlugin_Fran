@@ -198,7 +198,6 @@ std::string & SDRunoPlugin_Fran::loadILGTxtFile(nana::filebox::path_type file)
 	struct SWSKEDSRecord sr;
 	double dTmp;
 	valid = false;
-//	io::CSVReader<26, io::trim_chars<' '>, io::no_quote_escape<';'>> inFile(file.generic_string().c_str());
 	io::LineReader inFile(file.generic_string().c_str());
 	char * pLine, * pField;
 	int lineLength;
@@ -344,23 +343,46 @@ std::string & SDRunoPlugin_Fran::loadILGTxtFile(nana::filebox::path_type file)
 std::string & SDRunoPlugin_Fran::loadS1bCsvFile(nana::filebox::path_type file)
 {
 	struct SWSKEDSRecord sr;
-	std::string scanStr, utcStr, subMStr, filterStr, portStr;
+	std::string scanStr, utcStr, subMStr, filterStr, portStr, thresholdStr;
 	valid = false;
-	io::CSVReader<8, io::trim_chars<' '>, io::double_quote_escape<',', '\"'>> inFile(file.generic_string().c_str());
 	static std::string result;
 	result.clear();
 	try {
-		inFile.set_header("Frequency", "Scan", "M", "Station", "UTC", "SubM", "Filter", "Port");
-		while (inFile.read_row(sr.frequency, scanStr, sr.mode, sr.station, utcStr, subMStr, filterStr, portStr))
+		// Later memory bank files added a threshold value so they have either 8 or 9 columns
+		int cols = GetColumnCount(file);
+		if (cols == 9)
 		{
-			sr.station = sr.station.substr(0, 63); // SDRuno annotate text has a limit of 63 characters.
-			sr.on = 0;
-			sr.off = 2400;
-			sr.days = "smtwtfs";
-			sr.on_date = sr.off_date = 0L;
-			sr.source = file.stem().string();
-			stationRecords.emplace_back(sr);
+			io::CSVReader<9, io::trim_chars<' '>, io::double_quote_escape<',', '\"'>> inFile(file.generic_string().c_str());
+			inFile.set_header("Frequency", "Scan", "M", "Station", "UTC", "SubM", "Filter", "Port", "Threshold");
+			while (inFile.read_row(sr.frequency, scanStr, sr.mode, sr.station, utcStr, subMStr, filterStr, portStr, thresholdStr))
+			{
+				sr.station = sr.station.substr(0, 63); // SDRuno annotate text has a limit of 63 characters.
+				sr.on = 0;
+				sr.off = 2400;
+				sr.days = "smtwtfs";
+				sr.on_date = sr.off_date = 0L;
+				sr.source = file.stem().string();
+				stationRecords.emplace_back(sr);
+			}
+
 		}
+		else if (cols == 8)
+		{
+			io::CSVReader<8, io::trim_chars<' '>, io::double_quote_escape<',', '\"'>> inFile(file.generic_string().c_str());
+			inFile.set_header("Frequency", "Scan", "M", "Station", "UTC", "SubM", "Filter", "Port");
+			while (inFile.read_row(sr.frequency, scanStr, sr.mode, sr.station, utcStr, subMStr, filterStr, portStr))
+			{
+				sr.station = sr.station.substr(0, 63); // SDRuno annotate text has a limit of 63 characters.
+				sr.on = 0;
+				sr.off = 2400;
+				sr.days = "smtwtfs";
+				sr.on_date = sr.off_date = 0L;
+				sr.source = file.stem().string();
+				stationRecords.emplace_back(sr);
+			}
+		}
+		else
+			throw std::invalid_argument("Unsupported number of columns");
 	}
 	// Uncaught exceptions and popup message boxes can cause SDRuno hangs.
 	catch (std::exception& e)
@@ -633,4 +655,13 @@ std::filesystem::path SDRunoPlugin_Fran::GetPluginDir()
 std::filesystem::path SDRunoPlugin_Fran::GetMemoryFileDir()
 {
 	return m_MemoryFileDir;
+}
+// Simple function to determine the number of columns in a CSV
+int  SDRunoPlugin_Fran::GetColumnCount(nana::filebox::path_type file)
+{
+	int count = 1;
+	io::LineReader infile(file.generic_string().c_str());
+	std::string firstLine = infile.next_line();
+	count += std::count(firstLine.begin(), firstLine.end(), ',');
+	return count;
 }

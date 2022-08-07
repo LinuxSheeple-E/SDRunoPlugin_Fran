@@ -112,6 +112,7 @@ private:
 	std::vector<std::string>::iterator FindString(std::string & s, std::vector<std::string> & list);
 	void GetAppDirectory();
 	void GetCurDirectory();
+	int  GetColumnCount(nana::filebox::path_type file);
 
 
 	bool valid = false;
